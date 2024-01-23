@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+import sys
+sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 import cv2
+sys.path.append('/opt/ros/kinetic/lib/python2.7/dist-packages')
+
 import torch
 import rospy
 import numpy as np
+import time
 
 from std_msgs.msg import Header
 from sensor_msgs.msg import Image
@@ -23,6 +27,8 @@ class Yolo_Dect:
         pub_topic = rospy.get_param('~pub_topic', '/yolov5/BoundingBoxes')
         self.camera_frame = rospy.get_param('~camera_frame', '')
         conf = rospy.get_param('~conf', '0.5')
+
+        self.imgsz = rospy.get_param('~imgsz', '')
 
         # load local repository(YoloV5:v6.0)
         self.model = torch.hub.load(yolov5_path, 'custom',
@@ -67,8 +73,11 @@ class Yolo_Dect:
             image.height, image.width, -1)
         self.color_image = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2RGB)
 
-        results = self.model(self.color_image)
+        tic = time.time()
+        results = self.model(self.color_image, size=self.imgsz)
         # xmin    ymin    xmax   ymax  confidence  class    name
+        toc = time.time()
+        print("inference time: ", (toc - tic) * 1e3, "ms")
 
         boxs = results.pandas().xyxy[0].values
         self.dectshow(self.color_image, boxs, image.height, image.width)
